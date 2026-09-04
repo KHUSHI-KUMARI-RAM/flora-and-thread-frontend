@@ -1,0 +1,128 @@
+.shoes-page {
+  min-height: calc(100vh - 72px);
+  padding: 60px 50px;
+  background: #f8e1e7;
+}
+
+.shoes-page h1 {
+  text-align: center;
+  margin: 0;
+  font-size: 38px;
+  color: #3b252a;
+}
+
+.shoes-subtitle {
+  text-align: center;
+  margin: 10px 0 45px;
+  color: #7d646a;
+  font-size: 15px;
+}
+
+.shoes-grid {
+  max-width: 1200px;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.shoe-card {
+  background: #fffdfb;
+  border-radius: 18px;
+  overflow: hidden;
+
+  border: 1px solid #efd1d9;
+
+  box-shadow: 0 8px 25px rgba(59, 37, 42, 0.08);
+
+  transition: transform 0.3s ease;
+}
+
+.shoe-card:hover {
+  transform: translateY(-7px);
+}
+
+.shoe-image {
+  height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fceff2;
+}
+
+.shoe-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 15px;
+  box-sizing: border-box;
+}
+
+.shoe-info {
+  padding: 22px;
+}
+
+.shoe-brand {
+  color: #a85f70;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.shoe-info h2 {
+  margin: 8px 0 10px;
+  font-size: 20px;
+  color: #3b252a;
+}
+
+.shoe-rating {
+  margin-bottom: 20px;
+  color: #c9a45c;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.shoe-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shoe-bottom strong {
+  color: #3b252a;
+  font-size: 21px;
+}
+
+.shoe-bottom button {
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+
+  background: #d98b9c;
+  color: #fffdfb;
+
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shoe-bottom button:hover {
+  background: #c9a45c;
+  color: #3b252a;
+}
+
+@media (max-width: 900px) {
+  .shoes-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .shoes-page {
+    padding: 40px 20px;
+  }
+
+  .shoes-grid {
+    grid-template-columns: 1fr;
+  }
+}
