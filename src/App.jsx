@@ -192,7 +192,7 @@ function App() {
   const [showCart, setShowCart] = useState(false);
   const [orders, setOrders] = useState([]);
   useEffect(() => {
-  fetch("http://127.0.0.1:8000/orders")
+  fetch("http://https://flora-and-thread-frontend.onrender.com/orders")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Orders load nahi hue");
@@ -259,7 +259,7 @@ const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [backendProducts, setBackendProducts] = useState([]);
   useEffect(() => {
-  fetch("http://127.0.0.1:8000/products")
+  fetch("http://https://flora-and-thread-frontend.onrender.com/products")
  
     .then((response) => response.json())
     .then((data) => {
@@ -282,7 +282,7 @@ useEffect(() => {
     }
   }
 
-  fetch("http://127.0.0.1:8000/profile")
+  fetch("http://https://flora-and-thread-frontend.onrender.com/profile")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Profile load nahi hua");
@@ -415,7 +415,7 @@ const filteredProducts = products.filter((product) => {
     quantity: 1,
   };
 
-  fetch("http://127.0.0.1:8000/cart", {
+  fetch("http://https://flora-and-thread-frontend.onrender.com/cart", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -438,7 +438,7 @@ const increaseQuantity = (index) => {
   const productId = item.product_id ?? item.id;
 
   fetch(
-    `http://127.0.0.1:8000/cart/${productId}?quantity=${item.quantity + 1}`,
+    `http://https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=${item.quantity + 1}`,
     {
       method: "PUT",
     }
@@ -468,7 +468,7 @@ const decreaseQuantity = (index) => {
   }
 
   fetch(
-    `http://127.0.0.1:8000/cart/${productId}?quantity=${newQuantity}`,
+    `http://https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=${newQuantity}`,
     {
       method: "PUT",
     }
@@ -504,7 +504,7 @@ const removeFromCart = (index) => {
   });
 
   fetch(
-    `http://127.0.0.1:8000/cart/${productId}?quantity=0`,
+    `http://https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=0`,
     {
       method: "PUT",
     }
@@ -526,7 +526,7 @@ const removeFromCart = (index) => {
 
 const cancelOrder = (orderId) => {
   fetch(
-    `http://127.0.0.1:8000/orders/${orderId}/cancel`,
+    `http://https://flora-and-thread-frontend.onrender.com/orders/${orderId}/cancel`,
     {
       method: "PUT",
     }
@@ -1561,7 +1561,7 @@ const toggleWishlist = (product) => {
       )
     );
 
-    fetch(`http://127.0.0.1:8000/wishlist/${productId}`, {
+    fetch(`http://https://flora-and-thread-frontend.onrender.com/wishlist/${productId}`, {
       method: "DELETE",
     });
 
@@ -1578,7 +1578,7 @@ const toggleWishlist = (product) => {
 
   setWishlist((prev) => [...prev, wishlistItem]);
 
-  fetch("http://127.0.0.1:8000/wishlist", {
+  fetch("http://https://flora-and-thread-frontend.onrender.com/wishlist", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1599,7 +1599,7 @@ const goToWishlist = () => {
 };
 
 useEffect(() => {
-  fetch("http://127.0.0.1:8000/wishlist")
+  fetch("http://https://flora-and-thread-frontend.onrender.com/wishlist")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Wishlist load nahi hui");
@@ -1640,7 +1640,7 @@ useEffect(() => {
 }, []);
 
 const loadCart = () => {
-  fetch("http://127.0.0.1:8000/cart")
+  fetch("http://https://flora-and-thread-frontend.onrender.com/cart")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Cart load nahi hua");
@@ -1971,7 +1971,7 @@ Card
 };
 
                     const orderResponse = await fetch(
-                      "http://127.0.0.1:8000/orders",
+                      "http://https://flora-and-thread-frontend.onrender.com/orders",
                       {
                         method: "POST",
                         headers: {
@@ -1988,7 +1988,7 @@ Card
                     await orderResponse.json();
 
                     const ordersResponse = await fetch(
-                      "http://127.0.0.1:8000/orders"
+                      "http://https://flora-and-thread-frontend.onrender.com/orders"
                     );
 
                     if (!ordersResponse.ok) {
@@ -2013,7 +2013,7 @@ Card
                     };
 
                     const paymentResponse = await fetch(
-                      "http://127.0.0.1:8000/payments",
+                      "http://https://flora-and-thread-frontend.onrender.com/payments",
                       {
                         method: "POST",
                         headers: {
@@ -2074,7 +2074,7 @@ Card
                     await Promise.all(
                       orderedProductIds.map((productId) =>
                         fetch(
-                          `http://127.0.0.1:8000/cart/${productId}?quantity=0`,
+                          `http://https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=0`,
                           { method: "PUT" }
                         )
                       )
@@ -2570,7 +2570,7 @@ if (showProfile) {
         JSON.stringify(profileToSave)
       );
 
-      fetch("http://127.0.0.1:8000/profile", {
+      fetch("http://https://flora-and-thread-frontend.onrender.com/profile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
