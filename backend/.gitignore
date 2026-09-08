@@ -1,0 +1,5 @@
+venv/
+__pycache__/
+*.pyc
+flora_thread.db
+.env
