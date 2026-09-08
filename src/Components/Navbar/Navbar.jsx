@@ -2,11 +2,14 @@ import "./Navbar.css";
 
 function Navbar({
   cartCount = 0,
+  wishlistCount = 0,
+  onHomeClick = () => {},
   onCartClick,
+  onWishlistClick = () => {},
   onProductsClick = () => {},
   onDealsClick = () => {},
   onOrdersClick = () => {},
-  onProfileClick =() => {},
+  onProfileClick = () => {},
   onSearchChange = () => {}
 }) {
   return (
@@ -16,7 +19,6 @@ function Navbar({
         backgroundColor: "#DDEEDC"
       }}
     >
-
       <div
         className="logo"
         style={{
@@ -28,14 +30,13 @@ function Navbar({
       </div>
 
       <div className="nav-links">
-
-       <a
-  href="#"
-  onClick={(e) => {
-    e.preventDefault();
-    onProductsClick();
-  }}
->
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            onHomeClick();
+          }}
+        >
           🏠 Home
         </a>
 
@@ -51,42 +52,50 @@ function Navbar({
         </button>
 
         <a
-  href="/deals"
-  onClick={(e) => {
-    e.preventDefault();
-    onDealsClick();
-  }}
-  style={{
-    color: "#000000"
-  }}
->
-  🔥 Deals
-</a>
+          href="/deals"
+          onClick={(e) => {
+            e.preventDefault();
+            onDealsClick();
+          }}
+          style={{
+            color: "#000000"
+          }}
+        >
+          🔥 Deals
+        </a>
 
         <button
-  onClick={onOrdersClick}
-  style={{
-    background: "transparent",
-    color: "#000000",
-    border: "none"
-  }}
->
-  📦 Orders
-</button>
-
+          onClick={onOrdersClick}
+          style={{
+            background: "transparent",
+            color: "#000000",
+            border: "none"
+          }}
+        >
+          📦 Orders
+        </button>
       </div>
 
       <div className="nav-actions">
-
         <div className="search-container">
-         <input
-  type="text"
-  placeholder="Search products..."
-  onChange={(e) => onSearchChange(e.target.value)}
-/>
+          <input
+            type="text"
+            placeholder="Search products..."
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
 
           <span className="search-icon">🔍</span>
         </div>
+
+        <button
+          onClick={onWishlistClick}
+          style={{
+            color: "#000000"
+          }}
+        >
+          <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+          Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
+        </button>
 
         <button
           onClick={onCartClick}
@@ -98,16 +107,14 @@ function Navbar({
         </button>
 
         <button
-         onClick={onProfileClick}
+          onClick={onProfileClick}
           style={{
             color: "#000000"
           }}
         >
           👤 Profile
         </button>
-
       </div>
-
     </nav>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "./Components/Navbar/Navbar";
 import products from "./data/products";
 import "./App.css";
@@ -160,19 +160,168 @@ const deals = [
 ];
 
 function App() {
+  useEffect(() => {
+    document.documentElement.style.backgroundColor = "#FFF0F5";
+    document.body.style.backgroundColor = "#FFF0F5";
+    document.body.style.margin = "0";
+    const backgroundStyle = document.createElement("style");
+    backgroundStyle.id = "flora-thread-background-style";
+    backgroundStyle.textContent = `
+      html, body, #root {
+        background-color: #FFF0F5 !important;
+      }
+      [class$="-page"] {
+        background-color: #FFF0F5 !important;
+      }
+    `;
+    document.head.appendChild(backgroundStyle);
+
+    return () => {
+      document.documentElement.style.backgroundColor = "";
+      document.body.style.backgroundColor = "";
+      document.body.style.margin = "";
+      const oldBackgroundStyle = document.getElementById("flora-thread-background-style");
+      if (oldBackgroundStyle) {
+        oldBackgroundStyle.remove();
+      }
+    };
+  }, []);
+
   const [cart, setCart] = useState([]);
   const [showOrders, setShowOrders] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [orders, setOrders] = useState([]);
+  useEffect(() => {
+  fetch("http://127.0.0.1:8000/orders")
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Orders load nahi hue");
+      }
+      return response.json();
+    })
+    .then((data) => {
+      const savedOrderItems = JSON.parse(
+        localStorage.getItem("floraThreadOrderItems") || "{}"
+      );
+
+      const formattedOrders = data.map((order) => {
+        const savedItems = savedOrderItems[order.id] || [];
+        const totalItems = savedItems.reduce(
+          (total, item) => total + Number(item.quantity || 0),
+          0
+        );
+
+        const savedItemsTotal = savedItems.reduce(
+          (total, item) =>
+            total + Number(item.price || 0) * Number(item.quantity || 0),
+          0
+        );
+
+        return {
+          id: order.id,
+          date: order.order_date,
+          items: savedItems,
+          totalItems: totalItems,
+          totalPrice: savedItems.length > 0
+            ? savedItemsTotal
+            : Number(order.total_amount),
+          status: "Order Placed"
+        };
+      });
+
+      setOrders(formattedOrders);
+    })
+    .catch((error) => {
+      console.error("Orders backend error:", error);
+    });
+}, []);
   const [searchTerm, setSearchTerm] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [showProducts, setShowProducts] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
+  const [showWishlist, setShowWishlist] = useState(false);
+  const [wishlist, setWishlist] = useState([]);
+  const [showTrackOrder, setShowTrackOrder] = useState(false);
+const [trackingOrder, setTrackingOrder] = useState(null);
+  const [profile, setProfile] = useState({
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+});
+
+const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [showProductPage, setShowProductPage] = useState(false);
   const [showDeals, setShowDeals] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [backendProducts, setBackendProducts] = useState([]);
+  useEffect(() => {
+  fetch("http://127.0.0.1:8000/products")
+ 
+    .then((response) => response.json())
+    .then((data) => {
+     setBackendProducts(data);
+    })
+    .catch((error) => {
+      console.error("Backend error:", error);
+    });
+}, []);
+useEffect(() => {
+  const savedProfile = localStorage.getItem("floraThreadProfile");
 
+  if (savedProfile) {
+    try {
+      setProfile(JSON.parse(savedProfile));
+      return;
+    } catch (error) {
+      console.error("Saved profile load error:", error);
+      localStorage.removeItem("floraThreadProfile");
+    }
+  }
+
+  fetch("http://127.0.0.1:8000/profile")
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Profile load nahi hua");
+      }
+      return response.json();
+    })
+    .then((data) => {
+      const savedProfileData = {
+        name: data.name || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        address: data.address || "",
+      };
+
+      setProfile(savedProfileData);
+      localStorage.setItem(
+        "floraThreadProfile",
+        JSON.stringify(savedProfileData)
+      );
+    })
+    .catch((error) => {
+      console.error("Profile backend error:", error);
+    });
+}, []);
+const displayProducts = products.map((product) => {
+  const backendProduct = backendProducts.find(
+    (item) => item.id === product.id
+  );
+
+  if (backendProduct) {
+    return {
+      ...product,
+      name: backendProduct.name,
+      rating: backendProduct.rating,
+    };
+  }
+
+  return product;
+});
 const categories = [
   "All",
   "Audio",
@@ -216,92 +365,276 @@ const filteredProducts = products.filter((product) => {
   const [showNecklacePage, setShowNecklacePage] = useState(false);
   const [showBraceletPage, setShowBraceletPage] = useState(false);
 
-  const addToCart = (product) => {
-    setCart((prevCart) => {
-      const existingProduct = prevCart.find(
-        (item) =>
-          item.id === product.id &&
-          item.name === product.name &&
-          item.brand === product.brand
-      );
+ const addToCart = (product) => {
+  const productPrice = Number(
+    product.price ?? product.minPrice ?? product.originalPrice
+  );
 
-      if (existingProduct) {
-        return prevCart.map((item) =>
-          item.id === product.id &&
-          item.name === product.name &&
-          item.brand === product.brand
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-              }
-            : item
-        );
-      }
+  if (!Number.isFinite(productPrice) || productPrice <= 0) {
+    console.error("Product price nahi mila:", product);
+    return;
+  }
 
-      return [
-        ...prevCart,
-        {
-          ...product,
-          quantity: 1,
-        },
-      ];
-    });
+  const productId = product.id;
 
-    setShowCart(true);
-  };
-
-  const increaseQuantity = (index) => {
-    setCart((prevCart) =>
-      prevCart.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              quantity: item.quantity + 1,
-            }
-          : item
-      )
+  setCart((prevCart) => {
+    const existingItem = prevCart.find(
+      (item) => (item.product_id ?? item.id) === productId
     );
-  };
 
-  const decreaseQuantity = (index) => {
-    setCart((prevCart) =>
-      prevCart
-        .map((item, i) =>
-          i === index
-            ? {
-                ...item,
-                quantity: item.quantity - 1,
-              }
+    const updatedCart = existingItem
+      ? prevCart.map((item) =>
+          (item.product_id ?? item.id) === productId
+            ? { ...item, quantity: item.quantity + 1, price: productPrice }
             : item
         )
-        .filter((item) => item.quantity > 0)
+      : [
+          ...prevCart,
+          {
+            ...product,
+            product_id: productId,
+            price: productPrice,
+            quantity: 1,
+          },
+        ];
+
+    localStorage.setItem(
+      "floraThreadCart",
+      JSON.stringify(updatedCart)
     );
+
+    return updatedCart;
+  });
+
+  setShowCart(true);
+
+  const cartItem = {
+    product_id: productId,
+    name: product.name,
+    price: productPrice,
+    quantity: 1,
   };
+
+  fetch("http://127.0.0.1:8000/cart", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(cartItem),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Backend cart me item save nahi hua");
+      }
+      return response.json();
+    })
+    .catch((error) => {
+      console.error("Cart backend error:", error);
+    });
+};
+
+const increaseQuantity = (index) => {
+  const item = cart[index];
+  const productId = item.product_id ?? item.id;
+
+  fetch(
+    `http://127.0.0.1:8000/cart/${productId}?quantity=${item.quantity + 1}`,
+    {
+      method: "PUT",
+    }
+  )
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Quantity update nahi hui");
+      }
+      return response.json();
+    })
+    .then(() => {
+      loadCart();
+    })
+    .catch((error) => {
+      console.error("Quantity update error:", error);
+    });
+};
+
+const decreaseQuantity = (index) => {
+  const item = cart[index];
+  const productId = item.product_id ?? item.id;
+  const newQuantity = item.quantity - 1;
+
+  if (newQuantity <= 0) {
+    removeFromCart(index);
+    return;
+  }
+
+  fetch(
+    `http://127.0.0.1:8000/cart/${productId}?quantity=${newQuantity}`,
+    {
+      method: "PUT",
+    }
+  )
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Quantity update nahi hui");
+      }
+
+      return response.json();
+    })
+    .then(() => {
+      loadCart();
+    })
+    .catch((error) => {
+      console.error("Quantity update error:", error);
+    });
+};
+
 const removeFromCart = (index) => {
-  setCart((prevCart) =>
-    prevCart.filter((_, i) => i !== index)
-  );
+  const item = cart[index];
+  const productId = item.product_id ?? item.id;
+
+  setCart((prevCart) => {
+    const updatedCart = prevCart.filter((_, i) => i !== index);
+
+    localStorage.setItem(
+      "floraThreadCart",
+      JSON.stringify(updatedCart)
+    );
+
+    return updatedCart;
+  });
+
+  fetch(
+    `http://127.0.0.1:8000/cart/${productId}?quantity=0`,
+    {
+      method: "PUT",
+    }
+  )
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Item remove nahi hua");
+      }
+
+      return response.json();
+    })
+    .then(() => {
+      console.log("Cart item remove ho gaya");
+    })
+    .catch((error) => {
+      console.error("Remove cart error:", error);
+    });
 };
 
 const cancelOrder = (orderId) => {
+  fetch(
+    `http://127.0.0.1:8000/orders/${orderId}/cancel`,
+    {
+      method: "PUT",
+    }
+  )
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Order cancel nahi hua");
+      }
+
+      return response.json();
+    })
+    .then(() => {
+      setOrders((prevOrders) =>
+        prevOrders.filter((order) => order.id !== orderId)
+      );
+
+      const savedOrderItems = JSON.parse(
+        localStorage.getItem("floraThreadOrderItems") || "{}"
+      );
+
+      delete savedOrderItems[orderId];
+
+      localStorage.setItem(
+        "floraThreadOrderItems",
+        JSON.stringify(savedOrderItems)
+      );
+    })
+    .catch((error) => {
+      console.error("Order cancel error:", error);
+    });
+};
+
+const cancelOrderItem = (orderId, itemIndex) => {
+  const order = orders.find((item) => item.id === orderId);
+
+  if (!order || !order.items || order.items.length === 0) {
+    return;
+  }
+
+  const updatedItems = order.items.filter((_, index) => index !== itemIndex);
+
+  if (updatedItems.length === 0) {
+    cancelOrder(orderId);
+    return;
+  }
+
+  const updatedTotalItems = updatedItems.reduce(
+    (total, item) => total + Number(item.quantity || 0),
+    0
+  );
+
+  const updatedTotalPrice = updatedItems.reduce(
+    (total, item) =>
+      total + Number(item.price || 0) * Number(item.quantity || 0),
+    0
+  );
+
   setOrders((prevOrders) =>
-    prevOrders.filter((order) => order.id !== orderId)
+    prevOrders.map((currentOrder) =>
+      currentOrder.id === orderId
+        ? {
+            ...currentOrder,
+            items: updatedItems,
+            totalItems: updatedTotalItems,
+            totalPrice: updatedTotalPrice
+          }
+        : currentOrder
+    )
+  );
+
+  const savedOrderItems = JSON.parse(
+    localStorage.getItem("floraThreadOrderItems") || "{}"
+  );
+
+  savedOrderItems[orderId] = updatedItems;
+
+  localStorage.setItem(
+    "floraThreadOrderItems",
+    JSON.stringify(savedOrderItems)
   );
 };
 
-  const totalItems = cart.reduce(
-    (total, item) => total + item.quantity,
-    0
-  );
+const totalItems = cart.reduce(
+  (total, item) => total + item.quantity,
+  0
+);
 
-  const totalPrice = cart.reduce(
-    (total, item) =>
-      total + item.price * item.quantity,
-    0
-  );
+const totalPrice = cart.reduce(
+  (total, item) =>
+    total + item.price * item.quantity,
+  0
+);
+
+const checkoutTotalItems = checkoutItems.reduce(
+  (total, item) => total + Number(item.quantity || 0),
+  0
+);
+
+const checkoutTotalPrice = checkoutItems.reduce(
+  (total, item) =>
+    total + Number(item.price || 0) * Number(item.quantity || 0),
+  0
+);
 
   
  const goToProducts = () => {
+  setShowWishlist(false);
+  setShowProfile(false);
   setShowProductPage(true);
   setShowProducts(true);
   setSelectedCategory("All");
@@ -327,6 +660,8 @@ const cancelOrder = (orderId) => {
   setShowBraceletPage(false);
 };
 const goToHome = () => {
+  setShowWishlist(false);
+  setShowProfile(false);
   setShowProductPage(false);
   setShowProducts(true);
   setSelectedCategory("All");
@@ -353,6 +688,8 @@ const goToHome = () => {
   setShowBraceletPage(false);
 };
 const goToDeals = () => {
+  setShowWishlist(false);
+  setShowProfile(false);
   setShowProductPage(false);
   setShowDeals(true);
   setShowProducts(false);
@@ -378,8 +715,96 @@ const goToDeals = () => {
   setShowNecklacePage(false);
   setShowBraceletPage(false);
 };
+const goToProfile = () => {
+  setShowWishlist(false);
+  setShowProfile(true);
+  setShowProductPage(false);
+  setShowProducts(false);
+  setShowDeals(false);
+  setShowOrders(false);
+  setShowCart(false);
+  setShowCheckout(false);
+  setOrderPlaced(false);
+  setSelectedCategory("All");
+
+  setShowWatchPage(false);
+  setShowShoePage(false);
+  setShowEarphonePage(false);
+  setShowBagPage(false);
+  setShowPhonePage(false);
+  setShowLaptopsPage(false);
+  setShowKeyboardPage(false);
+  setShowChairPage(false);
+  setShowCameraPage(false);
+  setShowSummerDressPage(false);
+  setShowHoodiePage(false);
+  setShowWeddingDressPage(false);
+  setShowEngagementDressPage(false);
+  setShowNecklacePage(false);
+  setShowBraceletPage(false);
+};
+
+const goToOrders = () => {
+  setShowWishlist(false);
+  setShowOrders(true);
+  setShowProfile(false);
+  setShowProductPage(false);
+  setShowProducts(false);
+  setShowDeals(false);
+  setShowCart(false);
+  setShowCheckout(false);
+  setOrderPlaced(false);
+  setSelectedCategory("All");
+
+  setShowWatchPage(false);
+  setShowShoePage(false);
+  setShowEarphonePage(false);
+  setShowBagPage(false);
+  setShowPhonePage(false);
+  setShowLaptopsPage(false);
+  setShowKeyboardPage(false);
+  setShowChairPage(false);
+  setShowCameraPage(false);
+  setShowSummerDressPage(false);
+  setShowHoodiePage(false);
+  setShowWeddingDressPage(false);
+  setShowEngagementDressPage(false);
+  setShowNecklacePage(false);
+  setShowBraceletPage(false);
+};
+
+const goToCart = () => {
+  setShowWishlist(false);
+  setShowCart(true);
+  setShowProfile(false);
+  setShowProductPage(false);
+  setShowProducts(false);
+  setShowDeals(false);
+  setShowOrders(false);
+  setShowCheckout(false);
+  setOrderPlaced(false);
+  setSelectedCategory("All");
+
+  setShowWatchPage(false);
+  setShowShoePage(false);
+  setShowEarphonePage(false);
+  setShowBagPage(false);
+  setShowPhonePage(false);
+  setShowLaptopsPage(false);
+  setShowKeyboardPage(false);
+  setShowChairPage(false);
+  setShowCameraPage(false);
+  setShowSummerDressPage(false);
+  setShowHoodiePage(false);
+  setShowWeddingDressPage(false);
+  setShowEngagementDressPage(false);
+  setShowNecklacePage(false);
+  setShowBraceletPage(false);
+};
+
   const watchOptions = [
     {
+      id: 201,
       brand: "Fossil",
       name: "Fossil Watch",
       color: "Rose Gold",
@@ -388,6 +813,7 @@ const goToDeals = () => {
       image: watch1,
     },
     {
+      id: 202,
       brand: "Dior",
       name: "Dior Luxury Watch",
       color: "Lavender White and Silver",
@@ -396,6 +822,7 @@ const goToDeals = () => {
       image: watch2,
     },
     {
+      id: 203,
       brand: "Daniel Wellington",
       name: "Daniel Wellington Watch",
       color: "White Pink",
@@ -404,6 +831,7 @@ const goToDeals = () => {
       image: watch3,
     },
     {
+      id: 204,
       brand: "Timex",
       name: "Timex Classic Watch",
       color: "Silver and Black",
@@ -412,6 +840,7 @@ const goToDeals = () => {
       image: watch4,
     },
     {
+      id: 205,
       brand: "Yves Saint Laurent",
       name: "YSL Premium Watch",
       color: "Black Silver",
@@ -423,6 +852,7 @@ const goToDeals = () => {
 
   const shoeOptions = [
     {
+      id: 301,
       brand: "Adidas",
       name: "Adidas Running Shoes",
       color: "Light pink with white",
@@ -431,6 +861,7 @@ const goToDeals = () => {
       image: adidasShoes,
     },
     {
+      id: 302,
       brand: "Nike",
       name: "Nike Sports Shoes",
       color: "White with cherry Red",
@@ -439,6 +870,7 @@ const goToDeals = () => {
       image: nikeShoes,
     },
     {
+      id: 303,
       brand: "Puma",
       name: "Puma Running Shoes",
       color: "White with brown",
@@ -447,6 +879,7 @@ const goToDeals = () => {
       image: pumaShoes,
     },
     {
+      id: 304,
       brand: "Reebok",
       name: "Reebok Sports Shoes",
       color: "white & cherry red",
@@ -455,6 +888,7 @@ const goToDeals = () => {
       image: reebokShoes,
     },
     {
+      id: 305,
       brand: "Skechers",
       name: "Women's Comfort Shoes",
       color: "Rose Pink & White",
@@ -466,6 +900,7 @@ const goToDeals = () => {
 
   const earphoneOptions = [
     {
+      id: 401,
       brand: "boAt",
       name: "boAt Neckband Earphones",
       color: "Light pink",
@@ -474,6 +909,7 @@ const goToDeals = () => {
       image: earphone1,
     },
     {
+      id: 402,
       brand: "Boult Audio",
       name: "Boult Audio Headphone",
       color: "White and light pink",
@@ -482,6 +918,7 @@ const goToDeals = () => {
       image: earphone2,
     },
     {
+      id: 403,
       brand: "Boult",
       name: "Boult Premium Earbuds",
       color: "Rose Pink",
@@ -490,6 +927,7 @@ const goToDeals = () => {
       image: earphone3,
     },
     {
+      id: 404,
       brand: "Sony",
       name: "Sony Wireless Headphones",
       color: "Blush Pink",
@@ -498,6 +936,7 @@ const goToDeals = () => {
       image: earphone4,
     },
     {
+      id: 405,
       brand: "Realme",
       name: "Realme Teddy Buds",
       color: "Baby pink",
@@ -509,6 +948,7 @@ const goToDeals = () => {
 
   const bagOptions = [
     {
+      id: 501,
       brand: "Lavie",
       name: "Lavie Pink Bag",
       color: "Light Pink",
@@ -517,6 +957,7 @@ const goToDeals = () => {
       image: bag1,
     },
     {
+      id: 502,
       brand: "Caprese",
       name: "Caprese Classic Bag",
       color: "White & Brown",
@@ -525,6 +966,7 @@ const goToDeals = () => {
       image: bag2,
     },
     {
+      id: 503,
       brand: "Baggit",
       name: "Baggit Green Bag",
       color: "Light Green & White",
@@ -533,6 +975,7 @@ const goToDeals = () => {
       image: bag3,
     },
     {
+      id: 504,
       brand: "Hidesign",
       name: "Hidesign Premium Bag",
       color: "Chocolate",
@@ -541,6 +984,7 @@ const goToDeals = () => {
       image: bag4,
     },
     {
+      id: 505,
       brand: "Da Milano",
       name: "Da Milano Elegant Bag",
       color: "White & Rose Pink",
@@ -552,6 +996,7 @@ const goToDeals = () => {
 
   const phoneOptions = [
     {
+      id: 601,
       brand: "Samsung",
       name: "Samsung Rose Pink Smartphone",
       color: "Rose Pink",
@@ -560,6 +1005,7 @@ const goToDeals = () => {
       image: phone1,
     },
     {
+      id: 602,
       brand: "Samsung",
       name: "Samsung Black & Purple Smartphone",
       color: "Black & Purple",
@@ -568,6 +1014,7 @@ const goToDeals = () => {
       image: phone2,
     },
     {
+      id: 603,
       brand: "Apple",
       name: "iPhone 15",
       color: "Light Pink",
@@ -576,6 +1023,7 @@ const goToDeals = () => {
       image: phone3,
     },
     {
+      id: 604,
       brand: "Realme",
       name: "Realme Smartphone",
       color: "Rose Pink & Light Green",
@@ -584,6 +1032,7 @@ const goToDeals = () => {
       image: phone4,
     },
     {
+      id: 605,
       brand: "Apple",
       name: "iPhone 16",
       color: "White",
@@ -595,6 +1044,7 @@ const goToDeals = () => {
 
   const laptopOptions = [
     {
+      id: 701,
       brand: "HP",
       name: "HP Premium Laptop",
       color: "Light & Silver",
@@ -603,6 +1053,7 @@ const goToDeals = () => {
       image: laptop1,
     },
     {
+      id: 702,
       brand: "Huawei",
       name: "Huawei Laptop",
       color: "Light Green",
@@ -611,6 +1062,7 @@ const goToDeals = () => {
       image: laptop2,
     },
     {
+      id: 703,
       brand: "Apple",
       name: "Apple ipad",
       color: "purple",
@@ -619,6 +1071,7 @@ const goToDeals = () => {
       image: laptop3,
     },
     {
+      id: 704,
       brand: "ASUS",
       name: "ASUS VivoBook Laptop",
       color: "light pink with white",
@@ -627,6 +1080,7 @@ const goToDeals = () => {
       image: laptop4,
     },
     {
+      id: 705,
       brand: "Apple",
       name: "Apple MacBook Air",
       color: "Rose pink",
@@ -638,6 +1092,7 @@ const goToDeals = () => {
 
   const keyboardOptions = [
     {
+      id: 801,
       brand: "Logitech",
       name: "Logitech Mechanical Keyboard",
       color: "Baby pink with Rose pink",
@@ -646,6 +1101,7 @@ const goToDeals = () => {
       image: keyboard1,
     },
     {
+      id: 802,
       brand: "Redragon",
       name: "Redragon Gaming Keyboard",
       color: "White with lavender",
@@ -654,6 +1110,7 @@ const goToDeals = () => {
       image: keyboard2,
     },
     {
+      id: 803,
       brand: "HP",
       name: "HP Wireless Keyboard",
       color: "White with Brown",
@@ -662,6 +1119,7 @@ const goToDeals = () => {
       image: keyboard3,
     },
     {
+      id: 804,
       brand: "Dell",
       name: "Dell Wireless Keyboard",
       color: "White with light pink",
@@ -670,6 +1128,7 @@ const goToDeals = () => {
       image: keyboard4,
     },
     {
+      id: 805,
       brand: "ASUS",
       name: "ASUS RGB Gaming Keyboard",
       color: "White and Brown",
@@ -680,6 +1139,7 @@ const goToDeals = () => {
   ];
   const chairOptions = [
     {
+      id: 901,
       brand: "Green Soul",
       name: "Green Soul Ergonomic Chair",
       color: "Rose pink",
@@ -688,6 +1148,7 @@ const goToDeals = () => {
       image: chair1,
     },
     {
+      id: 902,
       brand: "Wakefit",
       name: "Wakefit Office Chair",
       color: "Peach",
@@ -696,6 +1157,7 @@ const goToDeals = () => {
       image: chair2,
     },
     {
+      id: 903,
       brand: "CellBell",
       name: "CellBell Gaming Chair",
       color: "Light pink",
@@ -704,6 +1166,7 @@ const goToDeals = () => {
       image: chair3,
     },
     {
+      id: 904,
       brand: "Featherlite",
       name: "Featherlite Study Chair",
       color: "Baby pink",
@@ -712,6 +1175,7 @@ const goToDeals = () => {
       image: chair4,
     },
     {
+      id: 905,
       brand: "INNOWIN",
       name: "INNOWIN Premium Chair",
       color: "Lavender",
@@ -723,6 +1187,7 @@ const goToDeals = () => {
 
   const cameraOptions = [
     {
+      id: 1001,
       brand: "Canon",
       name: "Canon Professional Camera",
       color: "Lavender",
@@ -731,6 +1196,7 @@ const goToDeals = () => {
       image: camera1,
     },
     {
+      id: 1002,
       brand: "Nikon",
       name: "Nikon DSLR Camera",
       color: "Rose pink",
@@ -739,6 +1205,7 @@ const goToDeals = () => {
       image: camera2,
     },
     {
+      id: 1003,
       brand: "Sony",
       name: "Sony Mirrorless Camera",
       color: "Skyblue",
@@ -747,6 +1214,7 @@ const goToDeals = () => {
       image: camera3,
     },
     {
+      id: 1004,
       brand: "Fujifilm",
       name: "Fujifilm Mirrorless Camera",
       color: "Silver",
@@ -755,6 +1223,7 @@ const goToDeals = () => {
       image: camera4,
     },
     {
+      id: 1005,
       brand: "Panasonic",
       name: "Panasonic Lumix Camera",
       color: "Dark Green",
@@ -766,6 +1235,7 @@ const goToDeals = () => {
 
   const summerDressOptions = [
     {
+      id: 1101,
       brand: "Zara",
       name: "Floral Summer Dress",
       color: "Pink & White",
@@ -774,6 +1244,7 @@ const goToDeals = () => {
       image: summer1,
     },
     {
+      id: 1102,
       brand: "H&M",
       name: "Cotton Summer Dress",
       color: "Dark Maroon",
@@ -782,6 +1253,7 @@ const goToDeals = () => {
       image: summer2,
     },
     {
+      id: 1103,
       brand: "Mango",
       name: "Elegant Summer Dress",
       color: "White with Light green",
@@ -790,6 +1262,7 @@ const goToDeals = () => {
       image: summer3,
     },
     {
+      id: 1104,
       brand: "Forever 21",
       name: "Casual Summer Dress",
       color: "White with skyblue",
@@ -798,6 +1271,7 @@ const goToDeals = () => {
       image: summer4,
     },
     {
+      id: 1105,
       brand: "AND",
       name: "Premium Summer Dress",
       color: "Peach with light green",
@@ -809,6 +1283,7 @@ const goToDeals = () => {
 
   const hoodieOptions = [
     {
+      id: 1201,
       brand: "H&M",
       name: "Classic Winter Hoodie",
       color: "Coffee Brown",
@@ -817,6 +1292,7 @@ const goToDeals = () => {
       image: hoodie1,
     },
     {
+      id: 1202,
       brand: "Zara",
       name: "Premium Casual Hoodie",
       color: "White",
@@ -825,6 +1301,7 @@ const goToDeals = () => {
       image: hoodie2,
     },
     {
+      id: 1203,
       brand: "Nike",
       name: "Sports Hoodie",
       color: "Rose pink",
@@ -833,6 +1310,7 @@ const goToDeals = () => {
       image: hoodie3,
     },
     {
+      id: 1204,
       brand: "Puma",
       name: "Comfort Winter Hoodie",
       color: "White with light pink",
@@ -841,6 +1319,7 @@ const goToDeals = () => {
       image: hoodie4,
     },
     {
+      id: 1205,
       brand: "Adidas",
       name: "Premium Sports Hoodie",
       color: "White with coffee brown",
@@ -852,6 +1331,7 @@ const goToDeals = () => {
 
   const weddingDressOptions = [
     {
+      id: 1301,
       brand: "Sabyasachi",
       name: "Royal Bridal Wedding Dress",
       color: "Soft Lavender",
@@ -860,6 +1340,7 @@ const goToDeals = () => {
       image: wedding1,
     },
     {
+      id: 1302,
       brand: "Manyavar",
       name: "Elegant Wedding Dress",
       color: "Pastel purple",
@@ -868,6 +1349,7 @@ const goToDeals = () => {
       image: wedding2,
     },
     {
+      id: 1303,
       brand: "Kalki Fashion",
       name: "Designer Bridal Dress",
       color: "soft lavender",
@@ -876,6 +1358,7 @@ const goToDeals = () => {
       image: wedding3,
     },
     {
+      id: 1304,
       brand: "Biba",
       name: "Traditional Wedding Dress",
       color: "Purple and Megenta",
@@ -884,6 +1367,7 @@ const goToDeals = () => {
       image: wedding4,
     },
     {
+      id: 1305,
       brand: "W for Woman",
       name: "Premium Wedding Dress",
       color: "Blush Pink",
@@ -895,6 +1379,7 @@ const goToDeals = () => {
 
   const engagementDressOptions = [
     {
+      id: 1401,
       brand: "Zara",
       name: "Elegant Party Dress",
       color: "White and sage green",
@@ -903,6 +1388,7 @@ const goToDeals = () => {
       image: dress1,
     },
     {
+      id: 1402,
       brand: "Mango",
       name: "Designer Engagement Dress",
       color: "Light seafoam green with cream",
@@ -911,6 +1397,7 @@ const goToDeals = () => {
       image: dress2,
     },
     {
+      id: 1403,
       brand: "H&M",
       name: "Classic Party Dress",
       color: "Rich dark pink",
@@ -919,6 +1406,7 @@ const goToDeals = () => {
       image: dress3,
     },
     {
+      id: 1404,
       brand: "AND",
       name: "Premium Engagement Dress",
       color: "Deep maroon or Burgundy",
@@ -927,6 +1415,7 @@ const goToDeals = () => {
       image: dress4,
     },
     {
+      id: 1405,
       brand: "Forever 21",
       name: "Stylish Party Dress",
       color: "Lavender",
@@ -938,6 +1427,7 @@ const goToDeals = () => {
 
   const necklaceOptions = [
     {
+      id: 1501,
       brand: "Tanishq",
       name: "Elegant Gold Necklace",
       color: "Champagne Gold",
@@ -946,6 +1436,7 @@ const goToDeals = () => {
       image: necklace1,
     },
     {
+      id: 1502,
       brand: "Mia by Tanishq",
       name: "Y-necklace wiyh pretty floral details",
       color: "Rose Gold",
@@ -954,6 +1445,7 @@ const goToDeals = () => {
       image: necklace2,
     },
     {
+      id: 1503,
       brand: "PC Jeweller",
       name: "Necklace with a prominent bow design and floral details",
       color: "Rose Gold",
@@ -962,6 +1454,7 @@ const goToDeals = () => {
       image: necklace3,
     },
     {
+      id: 1504,
       brand: "CaratLane",
       name: "Butterfly pendant with Dimond",
       color: "Silver",
@@ -970,6 +1463,7 @@ const goToDeals = () => {
       image: necklace4,
     },
     {
+      id: 1505,
       brand: "Sukkhi",
       name: "Dimond Style bow nacklace",
       color: "silver",
@@ -981,6 +1475,7 @@ const goToDeals = () => {
 
   const braceletOptions = [
     {
+      id: 1601,
       brand: "Tanishq",
       name: "Elegant Gold Bracelet",
       color: "Gold with pastel lavender",
@@ -989,6 +1484,7 @@ const goToDeals = () => {
       image: bracelet1,
     },
     {
+      id: 1602,
       brand: "Mia by Tanishq",
       name: "flower dimond desigh",
       color: "Lilac Lavender",
@@ -997,6 +1493,7 @@ const goToDeals = () => {
       image: bracelet2,
     },
     {
+      id: 1603,
       brand: "CaratLane",
       name: "Designer Diamond Bracelet",
       color: "Silver",
@@ -1005,6 +1502,7 @@ const goToDeals = () => {
       image: bracelet3,
     },
     {
+      id: 1604,
       brand: "PC Jeweller",
       name: "Classic Silver Bracelet",
       color: "silver with lilac lavender",
@@ -1013,6 +1511,7 @@ const goToDeals = () => {
       image: bracelet4,
     },
     {
+      id: 1605,
       brand: "Sukkhi",
       name: "Traditional Bracelet",
       color: "Gold & lavender",
@@ -1022,11 +1521,198 @@ const goToDeals = () => {
     },
   ];
 
+  const allCartProducts = [
+  ...products,
+  ...deals,
+  ...watchOptions,
+  ...shoeOptions,
+  ...earphoneOptions,
+  ...bagOptions,
+  ...phoneOptions,
+  ...laptopOptions,
+  ...keyboardOptions,
+  ...chairOptions,
+  ...cameraOptions,
+  ...summerDressOptions,
+  ...hoodieOptions,
+  ...weddingDressOptions,
+  ...engagementDressOptions,
+  ...necklaceOptions,
+  ...braceletOptions,
+];
+
+const toggleWishlist = (product) => {
+  const productId = Number(product.product_id ?? product.id);
+
+  const productPrice = Number(
+    product.price ?? product.minPrice ?? product.originalPrice
+  );
+
+  const productRating = Number(product.rating ?? 0);
+
+  const existing = wishlist.some(
+    (item) => Number(item.product_id ?? item.id) === productId
+  );
+
+  if (existing) {
+    setWishlist((prev) =>
+      prev.filter(
+        (item) => Number(item.product_id ?? item.id) !== productId
+      )
+    );
+
+    fetch(`http://127.0.0.1:8000/wishlist/${productId}`, {
+      method: "DELETE",
+    });
+
+    return;
+  }
+
+  const wishlistItem = {
+    product_id: productId,
+    product_name: product.name,
+    price: productPrice,
+    rating: productRating,
+    image: product.image,
+  };
+
+  setWishlist((prev) => [...prev, wishlistItem]);
+
+  fetch("http://127.0.0.1:8000/wishlist", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(wishlistItem),
+  });
+};
+const goToWishlist = () => {
+  setShowWishlist(true);
+  setShowProfile(false);
+  setShowProducts(false);
+  setShowCart(false);
+  setShowOrders(false);
+  setShowDeals(false);
+  setShowProductPage(false);
+  setShowCheckout(false);
+  setOrderPlaced(false);
+};
+
+useEffect(() => {
+  fetch("http://127.0.0.1:8000/wishlist")
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Wishlist load nahi hui");
+      }
+
+      return response.json();
+    })
+    .then((data) => {
+      const mergedWishlist = data.map((item) => {
+        const catalogProduct = allCartProducts.find(
+          (product) => product.id === item.product_id
+        );
+
+        if (catalogProduct) {
+          return {
+            ...catalogProduct,
+            ...item,
+            product_id: item.product_id,
+            name: item.product_name,
+            price: Number(item.price),
+            rating: Number(item.rating),
+          };
+        }
+
+        return {
+          ...item,
+          name: item.product_name,
+          price: Number(item.price),
+          rating: Number(item.rating),
+        };
+      });
+
+      setWishlist(mergedWishlist);
+    })
+    .catch((error) => {
+      console.error("Wishlist backend error:", error);
+    });
+}, []);
+
+const loadCart = () => {
+  fetch("http://127.0.0.1:8000/cart")
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Cart load nahi hua");
+      }
+
+      return response.json();
+    })
+    .then((data) => {
+      const mergedCart = data
+        .filter((item) => item.quantity > 0)
+        .map((item) => {
+          const catalogProduct = allCartProducts.find(
+            (product) => product.id === item.product_id
+          );
+
+          if (catalogProduct) {
+            return {
+              ...catalogProduct,
+              ...item,
+              product_id: item.product_id,
+              price: Number(item.price),
+            };
+          }
+
+          return {
+            ...item,
+            price: Number(item.price),
+          };
+        });
+
+      if (mergedCart.length > 0) {
+        setCart(mergedCart);
+
+        localStorage.setItem(
+          "floraThreadCart",
+          JSON.stringify(mergedCart)
+        );
+      } else {
+        const savedCart = JSON.parse(
+          localStorage.getItem("floraThreadCart") || "[]"
+        );
+
+        setCart(savedCart);
+      }
+    })
+    .catch((error) => {
+      console.error("Cart backend error:", error);
+
+      const savedCart = JSON.parse(
+        localStorage.getItem("floraThreadCart") || "[]"
+      );
+
+      setCart(savedCart);
+    });
+};
+  useEffect(() => {
+    loadCart();
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("floraThreadCart", JSON.stringify(cart));
+  }, [cart]);
+
+
   if (orderPlaced) {
    return  (
       <>
         <Navbar
-          cartCount={0}
+          onHomeClick={goToHome}
+        cartCount={0}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
           onCartClick={() => 
             setShowCart(true)}
           onProductsClick={goToProducts}
@@ -1081,14 +1767,14 @@ if (showProductPage) {
   return (
     <>
       <Navbar
+        onHomeClick={goToHome}
         cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
 
-        onCartClick={() => {
-          setShowProductPage(false);
-          setShowCart(true);
-        }}
+        onCartClick={goToCart}
 
-        onProductsClick={goToHome}
+        onProductsClick={goToProducts}
 
         onDealsClick={() => {
           setShowProductPage(false);
@@ -1104,6 +1790,7 @@ if (showProductPage) {
           setOrderPlaced(false);
         }}
 
+        onProfileClick={goToProfile}
         onSearchChange={setSearchTerm}
       />
 
@@ -1112,7 +1799,7 @@ if (showProductPage) {
         <p>Explore our products</p>
 
         <div className="products-list">
-          {products.map((product) => (
+          {displayProducts.map((product) => (
             <div className="product-row" key={product.id}>
               <img src={product.image} alt={product.name} />
 
@@ -1134,12 +1821,15 @@ if (showProductPage) {
   return (
     <>
       <Navbar
+        onHomeClick={goToHome}
         cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
         onCartClick={() => 
       setShowCart(true)}
         onProductsClick={goToProducts}
         onDealsClick={goToDeals}
-        onOrdersClick={() => setShowOrders(true)}
+        onOrdersClick={goToOrders}
         onProfileClick={() => {
   setShowProfile(true);
   setShowProductPage(false);
@@ -1221,47 +1911,182 @@ if (showProductPage) {
               <div className="payment-options">
                 <label>
                   <input
-                    type="radio"
-                    name="payment"
-                    defaultChecked
-                  />
-                  Cash on Delivery
+  type="radio"
+  name="payment"
+  value="Cash on Delivery"
+  checked={paymentMethod === "Cash on Delivery"}
+  onChange={(e) => setPaymentMethod(e.target.value)}
+/>
+Cash on Delivery
+                </label>
+
+                <label>
+                 <input
+  type="radio"
+  name="payment"
+  value="UPI"
+  checked={paymentMethod === "UPI"}
+  onChange={(e) => setPaymentMethod(e.target.value)}
+/>
+UPI
                 </label>
 
                 <label>
                   <input
-                    type="radio"
-                    name="payment"
-                  />
-                  UPI
-                </label>
-
-                <label>
-                  <input
-                    type="radio"
-                    name="payment"
-                  />
-                  Card
+  type="radio"
+  name="payment"
+  value="Card"
+  checked={paymentMethod === "Card"}
+  onChange={(e) => setPaymentMethod(e.target.value)}
+/>
+Card
                 </label>
               </div>
 
               <button
                 className="place-order-button"
-                onClick={() => {
-                  setOrders(prevOrders => [
-  ...prevOrders,
-  {
-    id: `FT-${Date.now().toString().slice(-6)}`,
-    date: new Date().toLocaleDateString("en-IN"),
-    items: cart,
-    totalItems: totalItems,
-    totalPrice: totalPrice,
-    status: "Order Placed"
-  }
-]);
-                  setOrderPlaced(true);
-                  setShowCheckout(false);
-                  setCart([]);
+                onClick={async () => {
+                  if (checkoutItems.length === 0) {
+                    alert("Order karne ke liye koi product select nahi hai.");
+                    return;
+                  }
+
+                  const orderAmount = Number(checkoutTotalPrice);
+
+                  if (!Number.isFinite(orderAmount) || orderAmount <= 0) {
+                    alert("Order amount sahi nahi hai.");
+                    return;
+                  }
+
+                  try {
+                   const orderData = {
+  total_amount: orderAmount,
+  order_date: new Date().toLocaleDateString("en-IN"),
+  items: checkoutItems.map((item) => ({
+    product_id: Number(item.product_id ?? item.id),
+    product_name: item.name,
+    price: Number(item.price),
+    quantity: Number(item.quantity)
+  }))
+};
+
+                    const orderResponse = await fetch(
+                      "http://127.0.0.1:8000/orders",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(orderData)
+                      }
+                    );
+
+                    if (!orderResponse.ok) {
+                      throw new Error("Order save nahi hua");
+                    }
+
+                    await orderResponse.json();
+
+                    const ordersResponse = await fetch(
+                      "http://127.0.0.1:8000/orders"
+                    );
+
+                    if (!ordersResponse.ok) {
+                      throw new Error("Orders load nahi hue");
+                    }
+
+                    const ordersData = await ordersResponse.json();
+
+                    if (!Array.isArray(ordersData) || ordersData.length === 0) {
+                      throw new Error("Latest order nahi mila");
+                    }
+
+                    const latestOrder = ordersData.reduce((latest, order) =>
+                      Number(order.id) > Number(latest.id) ? order : latest
+                    );
+
+                    const paymentData = {
+                      order_id: Number(latestOrder.id),
+                      payment_method: paymentMethod,
+                      payment_status: "Pending",
+                      amount: orderAmount
+                    };
+
+                    const paymentResponse = await fetch(
+                      "http://127.0.0.1:8000/payments",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(paymentData)
+                      }
+                    );
+
+                    if (!paymentResponse.ok) {
+                      throw new Error("Payment save nahi hua");
+                    }
+
+                    await paymentResponse.json();
+
+                    const savedOrderItems = JSON.parse(
+                      localStorage.getItem("floraThreadOrderItems") || "{}"
+                    );
+
+                    savedOrderItems[latestOrder.id] = checkoutItems;
+
+                    localStorage.setItem(
+                      "floraThreadOrderItems",
+                      JSON.stringify(savedOrderItems)
+                    );
+
+                    const newOrder = {
+                      id: latestOrder.id,
+                      date: latestOrder.order_date,
+                      items: checkoutItems,
+                      totalItems: checkoutTotalItems,
+                      totalPrice: Number(latestOrder.total_amount),
+                      status: "Order Placed"
+                    };
+
+                    setOrders((prevOrders) => [
+                      newOrder,
+                      ...prevOrders.filter(
+                        (order) => order.id !== latestOrder.id
+                      )
+                    ]);
+
+                    const orderedProductIds = checkoutItems.map(
+                      (item) => item.product_id ?? item.id
+                    );
+
+                    const remainingCart = cart.filter(
+                      (item) =>
+                        !orderedProductIds.includes(item.product_id ?? item.id)
+                    );
+
+                    setCart(remainingCart);
+                    localStorage.setItem(
+                      "floraThreadCart",
+                      JSON.stringify(remainingCart)
+                    );
+
+                    await Promise.all(
+                      orderedProductIds.map((productId) =>
+                        fetch(
+                          `http://127.0.0.1:8000/cart/${productId}?quantity=0`,
+                          { method: "PUT" }
+                        )
+                      )
+                    );
+
+                    setCheckoutItems([]);
+                    setOrderPlaced(true);
+                    setShowCheckout(false);
+                  } catch (error) {
+                    console.error("Order/Payment backend error:", error);
+                    alert(error.message || "Order place nahi hua");
+                  }
                 }}
               >
                 Place Order
@@ -1271,7 +2096,7 @@ if (showProductPage) {
             <div className="checkout-summary">
               <h2>Order Summary</h2>
 
-              {cart.map((item, index) => (
+              {checkoutItems.map((item, index) => (
                 <div
                   className="checkout-item"
                   key={index}
@@ -1308,13 +2133,13 @@ if (showProductPage) {
               <div className="checkout-total">
                 <p>
                   Total Items:
-                  <strong>{totalItems}</strong>
+                  <strong>{checkoutTotalItems}</strong>
                 </p>
 
                 <p>
                   Total Price:
                   <strong>
-                    ₹{totalPrice.toLocaleString("en-IN")}
+                    ₹{checkoutTotalPrice.toLocaleString("en-IN")}
                   </strong>
                 </p>
               </div>
@@ -1325,155 +2150,200 @@ if (showProductPage) {
     );
   }
   if (showOrders) {
-  return (
-    <>
-      <Navbar
-        cartCount={totalItems}
-        onCartClick={() => setShowCart(true)}
-        onProductsClick={goToProducts}
-        onDealsClick={goToDeals}
-        onOrdersClick={() => setShowOrders(true)}
-        onSearchChange={setSearchTerm}
-      />
+    return (
+      <>
+        <Navbar
+          onHomeClick={goToHome}
+          cartCount={totalItems}
+          wishlistCount={wishlist.length}
+          onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
+          onProductsClick={goToProducts}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+          onSearchChange={setSearchTerm}
+        />
 
-      <div style={{ padding: "40px" }}>
-       <h1
-  style={{
-    textAlign: "center",
-    fontSize: "38px",
-    fontWeight: "800",
-    color: "#771e33",
-    marginBottom: "8px"
-  }}
->
-  📦 My Orders
-</h1>
+        <div style={{ padding: "40px" }}>
+          <h1
+            style={{
+              textAlign: "center",
+              fontSize: "38px",
+              fontWeight: "800",
+              color: "#771e33",
+              marginBottom: "8px"
+            }}
+          >
+            📦 My Orders
+          </h1>
 
-        <p
-         style={{
-           textAlign: "center", 
-          color: "#830c87",
-          fontSize: "17px",
-           marginBottom: "30px" }}>
-  Track and manage your recent purchases
-</p>
-        {orders.length === 0 ? (
-          <div style={{ textAlign: "center" }}>
-            <h2>No orders yet 🛍️</h2>
-            <p>Your placed orders will appear here.</p>
-          </div>
-        ) : (
-          orders.map((order) => (
-            <div
-              key={order.id}
-              style={{
-                maxWidth: "800px",
-                margin: "0 auto 25px",
-                padding: "24px",
-                border: "1px solid #ead6dc",
-                borderRadius: "16px",
-                background: "#fff",
-                boxShadow: "0 4px 15px rgba(168, 95, 112, 0.12S"
-              }}
-            >
-              <h2
-  style={{
-    color: "#0c4f4b",
-    fontSize: "22px",
-    fontWeight: "600",
-    fontFamily: " 'segoe UI, sans-serif",
-    marginBottom: "12px"
-  }}
->
-  Order #{order.id}
-</h2>
+          <p
+            style={{
+              textAlign: "center",
+              color: "#830c87",
+              fontSize: "17px",
+              marginBottom: "30px"
+            }}
+          >
+            Track and manage your recent purchases
+          </p>
 
-              <p>📅 Date: {order.date}</p>
+          {orders.length === 0 ? (
+            <div style={{ textAlign: "center" }}>
+              <h2>No orders yet 🛍️</h2>
+              <p>Your placed orders will appear here.</p>
+            </div>
+          ) : (
+            orders.map((order) => (
+              <div
+                key={order.id}
+                style={{
+                  maxWidth: "800px",
+                  margin: "0 auto 25px",
+                  padding: "24px",
+                  border: "1px solid #ead6dc",
+                  borderRadius: "16px",
+                  background: "#fff",
+                  boxShadow: "0 4px 15px rgba(168, 95, 112, 0.12)"
+                }}
+              >
+                <h2
+                  style={{
+                    color: "#0c4f4b",
+                    fontSize: "22px",
+                    fontWeight: "600",
+                    fontFamily: "'Segoe UI', sans-serif",
+                    marginBottom: "12px"
+                  }}
+                >
+                  Order #{order.id}
+                </h2>
 
-              <p>
-                📦 Status:
-                <strong style={{ color: "green", marginLeft: "8px" }}>
-                  {order.status}
-                </strong>
-              </p>
+                <p>📅 Date: {order.date}</p>
 
-              <p>
-                🛍️ Total Items: <strong>{order.totalItems}</strong>
-              </p>
+                <p>
+                  📦 Status:
+                  <strong style={{ color: "green", marginLeft: "8px" }}>
+                    {order.status}
+                  </strong>
+                </p>
 
-              <p>
-                💰 Total:
-                <strong style={{ marginLeft: "8px" }}>
-                  ₹{order.totalPrice.toLocaleString("en-IN")}
-                  <button
-  onClick={() => cancelOrder(order.id)}
-  style={{
-    marginTop: "15px",
-    padding: "10px 18px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#d71c15",
-    color: "white",
-    cursor: "pointer",
-    fontWeight: "600"
-  }}
->
-  Cancel Order
-</button>
-                </strong>
-              </p>
+                <p>
+                  🛍️ Total Items: <strong>{order.totalItems}</strong>
+                </p>
 
-              <hr />
-
-              {order.items.map((item, index) => (
                 <div
-                  key={index}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: "15px",
-                    marginBottom: "15px"
+                    flexWrap: "wrap",
+                    marginBottom: "10px"
                   }}
                 >
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    style={{
-                      width: "70px",
-                      height: "70px",
-                      objectFit: "cover",
-                      borderRadius: "8px"
-                    }}
-                  />
+                  <p style={{ margin: 0 }}>
+                    💰 Total:
+                    <strong style={{ marginLeft: "8px" }}>
+                      ₹{Number(order.totalPrice || 0).toLocaleString("en-IN")}
+                    </strong>
+                  </p>
 
-                  <div>
-                    <h3>{item.name}</h3>
-                    <p>Quantity: {item.quantity}</p>
-                    <p>
-                      ₹{(
-                        item.price * item.quantity
-                      ).toLocaleString("en-IN")}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => cancelOrder(order.id)}
+                    style={{
+                      padding: "10px 18px",
+                      border: "none",
+                      borderRadius: "8px",
+                      backgroundColor: "#d71c15",
+                      color: "white",
+                      cursor: "pointer",
+                      fontWeight: "600"
+                    }}
+                  >
+                    Cancel Order
+                  </button>
                 </div>
-              ))}
-            </div>
-          ))
-        )}
-      </div>
-    </>
-  );
-}
+
+                <hr />
+
+                {order.items.length === 0 ? (
+                  <p>No product details available for this order.</p>
+                ) : (
+                  order.items.map((item, index) => (
+                    <div
+                      key={`${order.id}-${item.product_id ?? item.id ?? index}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "15px",
+                        marginBottom: "15px",
+                        padding: "12px 0",
+                        borderBottom: "1px solid #f0dfe5"
+                      }}
+                    >
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        style={{
+                          width: "70px",
+                          height: "70px",
+                          objectFit: "cover",
+                          borderRadius: "8px"
+                        }}
+                      />
+
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ margin: "0 0 8px" }}>{item.name}</h3>
+                        <p style={{ margin: "5px 0" }}>
+                          Quantity: {item.quantity}
+                        </p>
+                        <p style={{ margin: "5px 0" }}>
+                          Price: ₹{Number(item.price || 0).toLocaleString("en-IN")} × {item.quantity} = ₹{(
+                            Number(item.price || 0) * Number(item.quantity || 0)
+                          ).toLocaleString("en-IN")}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => cancelOrderItem(order.id, index)}
+                        style={{
+                          padding: "9px 14px",
+                          border: "none",
+                          borderRadius: "8px",
+                          backgroundColor: "#e05a73",
+                          color: "white",
+                          cursor: "pointer",
+                          fontWeight: "600",
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        Cancel Product
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </>
+    );
+  }
 
  if (showDeals) {
   return (
     <>
       <Navbar
+        onHomeClick={goToHome}
         cartCount={totalItems}
-        onCartClick={() => setShowCart(true)}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+        onCartClick={goToCart}
         onProductsClick={goToProducts}
         onDealsClick={goToDeals}
-        onOrdersClick={() => setShowOrders(true)}
+        onOrdersClick={goToOrders}
+        onProfileClick={goToProfile}
         onSearchChange={setSearchTerm}
       />
 
@@ -1560,7 +2430,10 @@ if (showProfile) {
   return (
     <>
       <Navbar
+        onHomeClick={goToHome}
         cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
         onCartClick={() => {
           setShowProfile(false);
           setShowCart(true);
@@ -1596,12 +2469,59 @@ if (showProfile) {
           </p>
 
           <div className="profile-info">
+            {isEditingProfile && (
+              <>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Name"
+                    value={profile.name}
+                    onChange={(e) =>
+                      setProfile({ ...profile, name: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={profile.email}
+                    onChange={(e) =>
+                      setProfile({ ...profile, email: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Phone"
+                    value={profile.phone}
+                    onChange={(e) =>
+                      setProfile({ ...profile, phone: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    value={profile.address}
+                    onChange={(e) =>
+                      setProfile({ ...profile, address: e.target.value })
+                    }
+                  />
+                </div>
+              </>
+            )}
 
             <div className="profile-info-box">
               <span>👤</span>
               <div>
                 <small>Name</small>
-                <strong>Flora User</strong>
+                <strong>{profile.name || "Flora User"}</strong>
               </div>
             </div>
 
@@ -1609,7 +2529,7 @@ if (showProfile) {
               <span>📧</span>
               <div>
                 <small>Email</small>
-                <strong>user@example.com</strong>
+                <strong>{profile.email || "user@example.com"}</strong>
               </div>
             </div>
 
@@ -1617,7 +2537,7 @@ if (showProfile) {
               <span>📱</span>
               <div>
                 <small>Phone</small>
-                <strong>+91 XXXXX XXXXX</strong>
+                <strong>{profile.phone || "+91 XXXXX XXXXX"}</strong>
               </div>
             </div>
 
@@ -1625,32 +2545,229 @@ if (showProfile) {
               <span>📍</span>
               <div>
                 <small>Address</small>
-                <strong>Your Address</strong>
+                <strong>{profile.address || "Your Address"}</strong>
               </div>
             </div>
 
           </div>
 
-          <button className="edit-profile-btn">
-            ✏️ Edit Profile
-          </button>
+   {isEditingProfile ? (
+  <button
+    className="edit-profile-btn"
+    onClick={() => {
+      const profileToSave = {
+        name: profile.name || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        address: profile.address || "",
+      };
 
+      setProfile(profileToSave);
+      setIsEditingProfile(false);
+
+      localStorage.setItem(
+        "floraThreadProfile",
+        JSON.stringify(profileToSave)
+      );
+
+      fetch("http://127.0.0.1:8000/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(profileToSave),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Profile save nahi hua");
+          }
+          return response.json();
+        })
+        .then(() => {
+          setProfile(profileToSave);
+          localStorage.setItem(
+            "floraThreadProfile",
+            JSON.stringify(profileToSave)
+          );
+        })
+        .catch((error) => {
+          console.error("Profile save error:", error);
+        });
+    }}
+  >
+    💾 Save Profile
+  </button>
+) : (
+  <button
+    className="edit-profile-btn"
+    onClick={() => setIsEditingProfile(true)}
+  >
+    ✏️ Edit Profile
+  </button>
+)}
+<button
+  className="edit-profile-btn"
+  onClick={goToWishlist}
+>
+  ❤️ My Wishlist
+</button>
         </div>
 
       </div>
     </>
   );
 }
-  
+  if (showWishlist) {
+  return (
+    <>
+      <Navbar
+        onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+        onCartClick={goToCart}
+        onProductsClick={goToProducts}
+        onDealsClick={goToDeals}
+        onOrdersClick={goToOrders}
+        onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
+      />
+
+      <main
+        className="wishlist-page"
+        style={{
+          minHeight: "calc(100vh - 72px)",
+          backgroundColor: "#FFF0F5",
+          padding: "40px",
+        }}
+      >
+        <h1
+          style={{
+            textAlign: "center",
+            marginBottom: "10px",
+          }}
+        >
+          ❤️ My Wishlist
+        </h1>
+
+        <p
+          style={{
+            textAlign: "center",
+            color: "#c84675",
+            marginBottom: "30px",
+          }}
+        >
+          Your favourite products
+        </p>
+
+        {wishlist.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "60px",
+            }}
+          >
+            <h2>The wishlist is empty right now. ❤️</h2>
+
+            <button
+              className="product-cart-button"
+              onClick={goToProducts}
+            >
+              Browse Products
+            </button>
+          </div>
+        ) : (
+          <div className="products-grid">
+            {wishlist.map((item) => (
+              <div
+                className="product-card"
+                key={item.product_id}
+              >
+                <div
+                  className="product-image"
+                  style={{
+                    position: "relative",
+                  }}
+                >
+                  <img
+                    src={item.image}
+                    alt={item.product_name}
+                  />
+
+                  <button
+                    onClick={() => toggleWishlist(item)}
+                    style={{
+                      position: "absolute",
+                      top: "10px",
+                      right: "10px",
+                      border: "none",
+                      background: "white",
+                      cursor: "pointer",
+                      padding: "9px 12px",
+                      borderRadius: "8px",
+                      fontWeight: "600",
+                      boxShadow:
+                        "0 2px 8px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    Remove from Wishlist
+                  </button>
+                </div>
+
+                <div className="product-info">
+                  <h2>{item.product_name}</h2>
+
+                  <p className="product-rating">
+                    ⭐ {item.rating}
+                  </p>
+
+                  <p className="product-price">
+                    ₹{Number(item.price).toLocaleString("en-IN")}
+                  </p>
+
+                  <button
+                    className="product-cart-button"
+                    onClick={() => {
+                      setCheckoutItems([
+                        {
+                          ...item,
+                          id: item.product_id,
+                          name: item.product_name,
+                          price: Number(item.price),
+                          rating: Number(item.rating),
+                          quantity: 1,
+                        },
+                      ]);
+                      setShowCheckout(true);
+                    }}
+                  >
+                    💳 Buy Now
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </>
+  );
+}
+
+
+
  if (showCart) {
   return (
     <>
       <Navbar
+        onHomeClick={goToHome}
         cartCount={totalItems}
-        onCartClick={() => setShowCart(true)}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+        onCartClick={goToCart}
         onProductsClick={goToProducts}
         onDealsClick={goToDeals}
-        onOrdersClick={() => setShowOrders(true)}
+        onOrdersClick={goToOrders}
+        onProfileClick={goToProfile}
         onSearchChange={setSearchTerm}
       />
         <div className="cart-page">
@@ -1720,14 +2837,34 @@ if (showProfile) {
                         </button>
                       </div>
 
-                      <button
-                        className="remove-cart-button"
-                        onClick={() =>
-                          removeFromCart(index)
-                        }
-                      >
-                        Remove
-                      </button>
+                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                        <button
+                          className="remove-cart-button"
+                          onClick={() =>
+                            removeFromCart(index)
+                          }
+                        >
+                          Remove
+                        </button>
+
+                        <button
+                          style={{
+                            border: "none",
+                            backgroundColor: "#e20960",
+                            color: "white",
+                            padding: "10px 16px",
+                            borderRadius: "8px",
+                            cursor: "pointer",
+                            fontWeight: "600"
+                          }}
+                          onClick={() => {
+                            setCheckoutItems([item]);
+                            setShowCheckout(true);
+                          }}
+                        >
+                          Order Now
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1750,7 +2887,10 @@ if (showProfile) {
 
                 <button
                   className="checkout-button"
-                  onClick={() => setShowCheckout(true)}
+                  onClick={() => {
+                    setCheckoutItems(cart);
+                    setShowCheckout(true);
+                  }}
                 >
                   Proceed to Checkout
                 </button>
@@ -1766,12 +2906,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="watch-page">
@@ -1817,12 +2961,27 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="watch-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="watch-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="watch-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+  <span style={{ color: "#F3CEEE" }}>♥</span> Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -1836,12 +2995,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="shoe-page">
@@ -1887,12 +3050,27 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="shoe-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="shoe-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="shoe-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE" }}>♥</span> Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -1906,12 +3084,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="earphone-page">
@@ -1960,12 +3142,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="earphone-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="earphone-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="earphone-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -1979,12 +3177,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="bag-page">
@@ -2030,12 +3232,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="bag-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="bag-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="bag-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2049,12 +3267,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="phone-page">
@@ -2100,12 +3322,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="phone-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="phone-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="phone-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2119,12 +3357,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="laptop-page">
@@ -2170,12 +3412,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="laptop-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="laptop-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="laptop-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2188,12 +3446,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="keyboard-page">
@@ -2239,12 +3501,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="keyboard-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="keyboard-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="keyboard-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2258,12 +3536,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="chair-page">
@@ -2309,12 +3591,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="chair-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                 <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="chair-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="chair-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2328,12 +3626,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="camera-page">
@@ -2378,13 +3680,28 @@ if (showProfile) {
                   <p className="camera-price">
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
+<div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="camera-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
 
-                  <button
-                    className="camera-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+  <button
+    className="camera-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2398,12 +3715,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="dress-page">
@@ -2449,12 +3770,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="dress-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="dress-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="dress-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2468,12 +3805,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="hoodie-page">
@@ -2519,12 +3860,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="hoodie-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="hoodie-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="hoodie-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2538,12 +3895,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="wedding-page">
@@ -2588,13 +3949,28 @@ if (showProfile) {
                   <p className="wedding-price">
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
+<div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="wedding-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
 
-                  <button
-                    className="wedding-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+  <button
+    className="wedding-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2608,12 +3984,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="engagement-page">
@@ -2659,12 +4039,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="engagement-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="engagement-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="engagement-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2678,12 +4074,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="necklace-page">
@@ -2729,12 +4129,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="necklace-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="necklace-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="necklace-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2748,12 +4164,16 @@ if (showProfile) {
     return (
       <>
         <Navbar
-          cartCount={totalItems}
-          onCartClick={() => setShowCart(true)}
+          onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+        onWishlistClick={goToWishlist}
+          onCartClick={goToCart}
           onProductsClick={goToProducts}
-          onDealsClick={(goToDeals)}
-          onOrdersClick={() => setShowOrders(true)}
-          onSearchChange={setSearchTerm}
+          onDealsClick={goToDeals}
+          onOrdersClick={goToOrders}
+          onProfileClick={goToProfile}
+        onSearchChange={setSearchTerm}
         />
 
         <div className="bracelet-page">
@@ -2799,12 +4219,28 @@ if (showProfile) {
                     ₹{item.price.toLocaleString("en-IN")}
                   </p>
 
-                  <button
-                    className="bracelet-cart-button"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                 <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  }}
+>
+  <button
+    className="bracelet-cart-button"
+    onClick={() => addToCart(item)}
+  >
+    🛒 Add to Cart
+  </button>
+
+  <button
+    className="bracelet-cart-button"
+    onClick={() => toggleWishlist(item)}
+  >
+    <span style={{ color: "#F3CEEE", fontSize: "20px" }}>♥</span>{" "}
+    Add to Wishlist
+  </button>
+</div>
                 </div>
               </div>
             ))}
@@ -2817,11 +4253,14 @@ if (showProfile) {
   return (
     <>
       <Navbar
-  cartCount={totalItems}
-  onCartClick={() => setShowCart(true)}
+  onHomeClick={goToHome}
+        cartCount={totalItems}
+        wishlistCount={wishlist.length}
+  onWishlistClick={goToWishlist}
+  onCartClick={goToCart}
   onProductsClick={goToProducts}
   onDealsClick={goToDeals}
-  onOrdersClick={() => setShowOrders(true)}
+  onOrdersClick={goToOrders}
   onProfileClick={() => {
     setShowProfile(true);
     setShowProductPage(false);
@@ -2835,7 +4274,8 @@ if (showProfile) {
   onSearchChange={setSearchTerm}
 />
 
-      <main className="products-page">
+      <main className="products-page"
+       style={{ backgroundColor: "#FFF0F5", minHeight: "calc(100vh - 72px)" }}>
         <div className="products-header">
           <h1
             style={{
@@ -2917,12 +4357,17 @@ if (showProfile) {
                 className="product-card"
                 key={product.id}
               >
-                <div className="product-image">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                  />
-                </div>
+               <div
+  className="product-image"
+  style={{ position: "relative" }}
+>
+  <img
+    src={product.image}
+    alt={product.name}
+  />
+
+  
+</div>
 
                 <div className="product-info">
                   <span className="product-category">
