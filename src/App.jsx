@@ -12,7 +12,7 @@ import watch5 from "./assets/products/watch5.jpg";
 import adidasShoes from "./assets/products/adidas.jpg";
 import nikeShoes from "./assets/products/nike.jpg";
 import pumaShoes from "./assets/products/puma.jpg";
-import reebokShoes from "./assets/products/reebok.jpg";
+import reebokShoes from "./assets/products/reebokShoes.jpg";
 import womenShoes from "./assets/products/women.jpg";
 
 import earphone1 from "./assets/products/earphone1.jpg";
