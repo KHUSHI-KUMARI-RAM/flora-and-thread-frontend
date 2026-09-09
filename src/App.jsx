@@ -192,48 +192,7 @@ function App() {
   const [showCart, setShowCart] = useState(false);
   const [orders, setOrders] = useState([]);
   useEffect(() => {
-  fetch("http://https://flora-and-thread-frontend.onrender.com/orders")
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Orders load nahi hue");
-      }
-      return response.json();
-    })
-    .then((data) => {
-      const savedOrderItems = JSON.parse(
-        localStorage.getItem("floraThreadOrderItems") || "{}"
-      );
-
-      const formattedOrders = data.map((order) => {
-        const savedItems = savedOrderItems[order.id] || [];
-        const totalItems = savedItems.reduce(
-          (total, item) => total + Number(item.quantity || 0),
-          0
-        );
-
-        const savedItemsTotal = savedItems.reduce(
-          (total, item) =>
-            total + Number(item.price || 0) * Number(item.quantity || 0),
-          0
-        );
-
-        return {
-          id: order.id,
-          date: order.order_date,
-          items: savedItems,
-          totalItems: totalItems,
-          totalPrice: savedItems.length > 0
-            ? savedItemsTotal
-            : Number(order.total_amount),
-          status: "Order Placed"
-        };
-      });
-
-      setOrders(formattedOrders);
-    })
-    .catch((error) => {
-      console.error("Orders backend error:", error);
-    });
+ 
 }, []);
   const [searchTerm, setSearchTerm] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
@@ -259,7 +218,7 @@ const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [backendProducts, setBackendProducts] = useState([]);
   useEffect(() => {
-  fetch("http://https://flora-and-thread-frontend.onrender.com/products")
+  fetch("https://flora-and-thread-frontend.onrender.com/products")
  
     .then((response) => response.json())
     .then((data) => {
@@ -282,7 +241,7 @@ useEffect(() => {
     }
   }
 
-  fetch("http://https://flora-and-thread-frontend.onrender.com/profile")
+  fetch("https://flora-and-thread-frontend.onrender.com/profile")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Profile load nahi hua");
@@ -415,7 +374,7 @@ const filteredProducts = products.filter((product) => {
     quantity: 1,
   };
 
-  fetch("http://https://flora-and-thread-frontend.onrender.com/cart", {
+  fetch("https://flora-and-thread-frontend.onrender.com/cart", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -438,7 +397,7 @@ const increaseQuantity = (index) => {
   const productId = item.product_id ?? item.id;
 
   fetch(
-    `http://https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=${item.quantity + 1}`,
+    `https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=${item.quantity + 1}`,
     {
       method: "PUT",
     }
@@ -468,7 +427,7 @@ const decreaseQuantity = (index) => {
   }
 
   fetch(
-    `http://https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=${newQuantity}`,
+    `https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=${newQuantity}`,
     {
       method: "PUT",
     }
@@ -504,7 +463,7 @@ const removeFromCart = (index) => {
   });
 
   fetch(
-    `http://https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=0`,
+    `https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=0`,
     {
       method: "PUT",
     }
@@ -526,7 +485,7 @@ const removeFromCart = (index) => {
 
 const cancelOrder = (orderId) => {
   fetch(
-    `http://https://flora-and-thread-frontend.onrender.com/orders/${orderId}/cancel`,
+    `https://flora-and-thread-frontend.onrender.com/orders/${orderId}/cancel`,
     {
       method: "PUT",
     }
@@ -1561,7 +1520,7 @@ const toggleWishlist = (product) => {
       )
     );
 
-    fetch(`http://https://flora-and-thread-frontend.onrender.com/wishlist/${productId}`, {
+    fetch(`https://flora-and-thread-frontend.onrender.com/wishlist/${productId}`, {
       method: "DELETE",
     });
 
@@ -1578,7 +1537,7 @@ const toggleWishlist = (product) => {
 
   setWishlist((prev) => [...prev, wishlistItem]);
 
-  fetch("http://https://flora-and-thread-frontend.onrender.com/wishlist", {
+  fetch("https://flora-and-thread-frontend.onrender.com/wishlist", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1599,7 +1558,7 @@ const goToWishlist = () => {
 };
 
 useEffect(() => {
-  fetch("http://https://flora-and-thread-frontend.onrender.com/wishlist")
+  fetch("https://flora-and-thread-frontend.onrender.com/wishlist")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Wishlist load nahi hui");
@@ -1640,7 +1599,7 @@ useEffect(() => {
 }, []);
 
 const loadCart = () => {
-  fetch("http://https://flora-and-thread-frontend.onrender.com/cart")
+  fetch("https://flora-and-thread-frontend.onrender.com/cart")
     .then((response) => {
       if (!response.ok) {
         throw new Error("Cart load nahi hua");
@@ -1971,7 +1930,7 @@ Card
 };
 
                     const orderResponse = await fetch(
-                      "http://https://flora-and-thread-frontend.onrender.com/orders",
+                      "https://flora-and-thread-frontend.onrender.com/orders",
                       {
                         method: "POST",
                         headers: {
@@ -1988,7 +1947,7 @@ Card
                     await orderResponse.json();
 
                     const ordersResponse = await fetch(
-                      "http://https://flora-and-thread-frontend.onrender.com/orders"
+                      "https://flora-and-thread-frontend.onrender.com/orders"
                     );
 
                     if (!ordersResponse.ok) {
@@ -2013,7 +1972,7 @@ Card
                     };
 
                     const paymentResponse = await fetch(
-                      "http://https://flora-and-thread-frontend.onrender.com/payments",
+                      "https://flora-and-thread-frontend.onrender.com/payments",
                       {
                         method: "POST",
                         headers: {
@@ -2074,7 +2033,7 @@ Card
                     await Promise.all(
                       orderedProductIds.map((productId) =>
                         fetch(
-                          `http://https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=0`,
+                          `https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=0`,
                           { method: "PUT" }
                         )
                       )
@@ -2570,7 +2529,7 @@ if (showProfile) {
         JSON.stringify(profileToSave)
       );
 
-      fetch("http://https://flora-and-thread-frontend.onrender.com/profile", {
+      fetch("https://flora-and-thread-frontend.onrender.com/profile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
