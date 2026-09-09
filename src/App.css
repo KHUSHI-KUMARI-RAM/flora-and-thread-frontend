@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Parisienne&display=swap');
 * {
   box-sizing: border-box;
@@ -3028,4 +3027,560 @@ img {
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* =========================================================
+   MOBILE-FIRST FINAL POLISH
+   Keeps existing desktop styling intact and improves
+   phone/tablet layouts without changing functionality.
+========================================================= */
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+button,
+input,
+textarea,
+select {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .products-page,
+  .watch-page,
+  .shoe-page,
+  .earphone-page,
+  .bag-page,
+  .phone-page,
+  .laptop-page,
+  .keyboard-page,
+  .chair-page,
+  .camera-page,
+  .dress-page,
+  .hoodie-page,
+  .wedding-page,
+  .engagement-page,
+  .necklace-page,
+  .bracelet-page,
+  .cart-page {
+    width: 100%;
+    max-width: 100%;
+    padding: 24px 14px 40px;
+  }
+
+  .products-header {
+    margin-bottom: 22px;
+  }
+
+  .products-header h1,
+  .watch-page h1,
+  .shoe-page h1,
+  .earphone-page h1,
+  .bag-page h1,
+  .phone-page h1,
+  .laptop-page h1,
+  .keyboard-page h1,
+  .chair-page h1,
+  .camera-page h1,
+  .dress-page h1,
+  .hoodie-page h1,
+  .wedding-page h1,
+  .engagement-page h1,
+  .necklace-page h1,
+  .bracelet-page h1,
+  .cart-page h1 {
+    font-size: 28px;
+    line-height: 1.15;
+    word-break: normal;
+  }
+
+  .products-header p,
+  .watch-subtitle,
+  .shoe-subtitle,
+  .earphone-subtitle,
+  .bag-subtitle,
+  .phone-subtitle,
+  .laptop-subtitle,
+  .keyboard-subtitle,
+  .chair-subtitle,
+  .camera-subtitle,
+  .dress-subtitle,
+  .hoodie-subtitle,
+  .wedding-subtitle,
+  .engagement-subtitle {
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .category-filter {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding: 4px 2px 10px;
+    scrollbar-width: thin;
+  }
+
+  .category-filter button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 9px 13px;
+    font-size: 13px;
+  }
+
+  .products-grid,
+  .watch-grid,
+  .shoe-grid,
+  .earphone-grid,
+  .bag-grid,
+  .phone-grid,
+  .laptop-grid,
+  .keyboard-grid,
+  .chair-grid,
+  .camera-grid,
+  .dress-grid,
+  .hoodie-grid,
+  .wedding-grid,
+  .engagement-grid,
+  .necklace-grid,
+  .bracelet-grid {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .product-card,
+  .watch-card,
+  .shoe-card,
+  .earphone-card,
+  .bag-card,
+  .phone-card,
+  .laptop-card,
+  .keyboard-card,
+  .chair-card,
+  .camera-card,
+  .dress-card,
+  .hoodie-card,
+  .wedding-card,
+  .engagement-card,
+  .necklace-card,
+  .bracelet-card {
+    min-width: 0;
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  .product-image,
+  .watch-image,
+  .shoe-image,
+  .earphone-image,
+  .bag-image,
+  .phone-image,
+  .laptop-image,
+  .keyboard-image,
+  .chair-image,
+  .camera-image,
+  .dress-image,
+  .hoodie-image,
+  .wedding-image,
+  .engagement-image,
+  .necklace-image,
+  .bracelet-image {
+    height: 150px;
+  }
+
+  .product-image img,
+  .watch-image img,
+  .shoe-image img,
+  .earphone-image img,
+  .bag-image img,
+  .phone-image img,
+  .laptop-image img,
+  .keyboard-image img,
+  .chair-image img,
+  .camera-image img,
+  .dress-image img,
+  .hoodie-image img,
+  .wedding-image img,
+  .engagement-image img,
+  .necklace-image img,
+  .bracelet-image img {
+    padding: 9px;
+  }
+
+  .product-info,
+  .watch-info,
+  .shoe-info,
+  .earphone-info,
+  .bag-info,
+  .phone-info,
+  .laptop-info,
+  .keyboard-info,
+  .chair-info,
+  .camera-info,
+  .dress-info,
+  .hoodie-info,
+  .wedding-info,
+  .engagement-info,
+  .necklace-info,
+  .bracelet-info {
+    padding: 12px;
+  }
+
+  .product-info h2,
+  .watch-info h2,
+  .shoe-info h2,
+  .earphone-info h2,
+  .bag-info h2,
+  .phone-info h2,
+  .laptop-info h2,
+  .keyboard-info h2,
+  .chair-info h2,
+  .camera-info h2,
+  .dress-info h2,
+  .hoodie-info h2,
+  .wedding-info h2,
+  .engagement-info h2,
+  .necklace-info h2,
+  .bracelet-info h2 {
+    font-size: 15px;
+    line-height: 1.25;
+    margin-bottom: 7px;
+  }
+
+  .product-category,
+  .watch-brand,
+  .shoe-brand,
+  .earphone-brand,
+  .bag-brand,
+  .phone-brand,
+  .laptop-brand,
+  .keyboard-brand,
+  .chair-brand,
+  .camera-brand,
+  .dress-brand,
+  .hoodie-brand,
+  .wedding-brand,
+  .engagement-brand,
+  .necklace-brand,
+  .bracelet-brand {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .product-rating,
+  .watch-rating,
+  .shoe-rating,
+  .earphone-rating,
+  .bag-rating,
+  .phone-rating,
+  .laptop-rating,
+  .keyboard-rating,
+  .chair-rating,
+  .camera-rating,
+  .dress-rating,
+  .hoodie-rating,
+  .wedding-rating,
+  .engagement-rating,
+  .necklace-rating,
+  .bracelet-rating,
+  .watch-color,
+  .shoe-color,
+  .earphone-color,
+  .bag-color,
+  .phone-color,
+  .laptop-color,
+  .keyboard-color,
+  .chair-color,
+  .camera-color,
+  .dress-color,
+  .hoodie-color,
+  .wedding-color,
+  .engagement-color,
+  .necklace-color,
+  .bracelet-color {
+    font-size: 12px;
+    margin-bottom: 7px;
+  }
+
+  .product-price,
+  .watch-price,
+  .shoe-price,
+  .earphone-price,
+  .bag-price,
+  .phone-price,
+  .laptop-price,
+  .keyboard-price,
+  .chair-price,
+  .camera-price,
+  .dress-price,
+  .hoodie-price,
+  .wedding-price,
+  .engagement-price,
+  .necklace-price,
+  .bracelet-price {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+
+  .product-cart-button,
+  .product-options-button,
+  .watch-cart-button,
+  .shoe-cart-button,
+  .earphone-cart-button,
+  .bag-cart-button,
+  .phone-cart-button,
+  .laptop-cart-button,
+  .laptop-options-button,
+  .keyboard-cart-button,
+  .chair-cart-button,
+  .camera-cart-button,
+  .dress-cart-button,
+  .hoodie-cart-button,
+  .wedding-cart-button {
+    padding: 10px 9px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+
+  .deals-grid {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .deals-grid .product-card {
+    max-width: none;
+  }
+
+  .products-list {
+    width: 100%;
+    gap: 12px;
+  }
+
+  .product-row {
+    width: 100%;
+    gap: 12px;
+    padding: 12px;
+    align-items: center;
+  }
+
+  .product-row img {
+    width: 88px;
+    height: 88px;
+    border-radius: 10px;
+  }
+
+  .product-row h2 {
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+
+  .product-row p {
+    font-size: 12px;
+    margin: 4px 0;
+  }
+
+  .product-row p:last-child {
+    font-size: 13px;
+  }
+
+  /* Cart */
+  .cart-page {
+    padding-top: 20px;
+  }
+
+  .cart-item {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 13px;
+  }
+
+  .cart-item-image {
+    width: 100%;
+    height: 190px;
+  }
+
+  .cart-item-info {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cart-item-info h2 {
+    font-size: 18px;
+  }
+
+  .cart-item-info h3 {
+    font-size: 18px;
+    margin: 9px 0;
+  }
+
+  .quantity-controls {
+    gap: 10px;
+    margin: 10px 0;
+  }
+
+  .quantity-controls button {
+    width: 42px;
+    height: 42px;
+    font-size: 22px;
+  }
+
+  .quantity-controls span {
+    min-width: 28px;
+    font-size: 16px;
+  }
+
+  .cart-summary {
+    width: 100%;
+    max-width: none;
+    padding: 18px;
+    margin-left: 0;
+  }
+
+  .cart-summary h2 {
+    font-size: 21px;
+  }
+
+  /* Checkout */
+  .checkout-page {
+    padding: 22px 14px 40px;
+  }
+
+  .checkout-container {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .checkout-form,
+  .checkout-summary {
+    width: 100%;
+    min-width: 0;
+    padding: 18px;
+  }
+
+  .checkout-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .checkout-item {
+    gap: 10px;
+  }
+
+  /* Profile */
+  .profile-page {
+    padding: 28px 14px;
+  }
+
+  .profile-card {
+    width: 100%;
+    padding: 22px 16px;
+    border-radius: 18px;
+  }
+
+  .profile-card h1 {
+    font-size: 24px;
+  }
+
+  /* Success */
+  .order-success-page {
+    padding: 26px 14px;
+  }
+
+  .order-success-card {
+    width: 100%;
+    padding: 28px 18px;
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 430px) {
+  .products-grid,
+  .watch-grid,
+  .shoe-grid,
+  .earphone-grid,
+  .bag-grid,
+  .phone-grid,
+  .laptop-grid,
+  .keyboard-grid,
+  .chair-grid,
+  .camera-grid,
+  .dress-grid,
+  .hoodie-grid,
+  .wedding-grid,
+  .engagement-grid,
+  .necklace-grid,
+  .bracelet-grid,
+  .deals-grid {
+    gap: 10px;
+  }
+
+  .product-image,
+  .watch-image,
+  .shoe-image,
+  .earphone-image,
+  .bag-image,
+  .phone-image,
+  .laptop-image,
+  .keyboard-image,
+  .chair-image,
+  .camera-image,
+  .dress-image,
+  .hoodie-image,
+  .wedding-image,
+  .engagement-image,
+  .necklace-image,
+  .bracelet-image {
+    height: 135px;
+  }
+
+  .product-info,
+  .watch-info,
+  .shoe-info,
+  .earphone-info,
+  .bag-info,
+  .phone-info,
+  .laptop-info,
+  .keyboard-info,
+  .chair-info,
+  .camera-info,
+  .dress-info,
+  .hoodie-info,
+  .wedding-info,
+  .engagement-info,
+  .necklace-info,
+  .bracelet-info {
+    padding: 10px;
+  }
+
+  .product-info h2,
+  .watch-info h2,
+  .shoe-info h2,
+  .earphone-info h2,
+  .bag-info h2,
+  .phone-info h2,
+  .laptop-info h2,
+  .keyboard-info h2,
+  .chair-info h2,
+  .camera-info h2,
+  .dress-info h2,
+  .hoodie-info h2,
+  .wedding-info h2,
+  .engagement-info h2,
+  .necklace-info h2,
+  .bracelet-info h2 {
+    font-size: 14px;
+  }
 }
