@@ -395,9 +395,10 @@ const filteredProducts = products.filter((product) => {
 const increaseQuantity = (index) => {
   const item = cart[index];
   const productId = item.product_id ?? item.id;
+  const newQuantity = Number(item.quantity) + 1;
 
   fetch(
-    `https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=${item.quantity + 1}`,
+    `https://flora-and-thread-frontend.onrender.com/cart/${productId}?quantity=${newQuantity}`,
     {
       method: "PUT",
     }
@@ -419,7 +420,7 @@ const increaseQuantity = (index) => {
 const decreaseQuantity = (index) => {
   const item = cart[index];
   const productId = item.product_id ?? item.id;
-  const newQuantity = item.quantity - 1;
+  const newQuantity = Number(item.quantity) - 1;
 
   if (newQuantity <= 0) {
     removeFromCart(index);
@@ -436,7 +437,6 @@ const decreaseQuantity = (index) => {
       if (!response.ok) {
         throw new Error("Quantity update nahi hui");
       }
-
       return response.json();
     })
     .then(() => {
