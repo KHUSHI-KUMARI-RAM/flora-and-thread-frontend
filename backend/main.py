@@ -10,12 +10,17 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://flora-and-thread-frontend.vercel.app",
+        "https://flora-and-thread-frontend-git-main-flora-and-thread.vercel.app",
+    ],
+    allow_origin_regex=r"^https://flora-and-thread.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 @app.get("/")
 def home():
     return {
